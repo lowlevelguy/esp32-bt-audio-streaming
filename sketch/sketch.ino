@@ -3,17 +3,15 @@
 #include "webserver.h"
 #include "sd.h"
 
-<<<<<<< HEAD
 extern BluetoothA2DPSource a2dp;
 extern std::vector<std::string> bt_devices;
 extern int current_device_id;
 extern bool streaming;
-=======
 
 const size_t targets_row_count = 16, targets_row_sz = 33;
 char targets[targets_row_count * targets_row_sz] = {0};
 SdFat sd;
->>>>>>> refs/remotes/origin/master
+
 
 // Global variable to indicate the current state of the program
 enum {
