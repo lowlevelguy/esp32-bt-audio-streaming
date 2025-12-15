@@ -1,5 +1,6 @@
 #include <stdlib.h>
-#include "sd.h"
+
+#define PCM_START 44
 
 /*
  * Parses the .conf file at the root of the SD card's filesystem, every line of which contains
@@ -15,18 +16,16 @@
  *
  *
  * @param sd: reference to a previously setup SD object
- * @param 
+ * @param targets: array of size targets_row_count*targets_row_sz in bytes
  * @param targets_row_count: number of rows in the 2D array
- * @param targets_row_sz: size of each row of the 2D array
+ * @param targets_row_sz: size of each row of the 2D array in bytes
  * @return int: -1 on failure, number of rows written on success.
  */
-int parseConfig(SD& sd, char* targets, size_t targets_row_count, size_t targets_row_sz) {
+int parse_config() {
 	if (!targets)
 		return -1;
-	if (!sd.exists(".conf"))
-		return -1;
 	
-	File conf_file = sd.open(".conf", FILE_READ);
+	File conf_file = sd.open(".conf");
 	if (!conf_file)
 		return -1;
 
@@ -37,7 +36,7 @@ int parseConfig(SD& sd, char* targets, size_t targets_row_count, size_t targets_
 	memset(targets, 0, targets_row_count * targets_row_sz);
 	while (i < targets_row_count && (bytes_count = conf_file.read(buf, sizeof(buf))) > 0) {
 		for (int k = 0; k < bytes_count; k++) {
-			// Newline mark new file path, but only if the line was non-empty
+			// Newline marks new file path, but only if the line was non-empty
 			if (buf[k] == '\n') {
 				if (j > 0) {
 					j = 0;
@@ -66,4 +65,55 @@ int parseConfig(SD& sd, char* targets, size_t targets_row_count, size_t targets_
 
 	conf_file.close();
 	return i;
+}
+
+/*
+ * Reads at most len bytes of PCM data from file to data.
+ *
+ * @param file: reference to File object to read data from
+ * @param seek: boolean to indicate whether we should seek to PCM_START
+ * @param data: buffer to write the data to
+ * @param len: maximum size of data to write to buffer in bytes
+ */
+int32_t get_sound(File& file, bool seek, uint8_t* data, int32_t len) {
+	if (seek)
+		file.seekSet(PCM_START);
+	return file.read(data, len);
+}
+
+/*
+ * Wrapper function for get_sound to be used for A2DP's get_data_cb callback function.
+ * Internally keeps track of the file to play from the targets specificed in the config file.
+ * When the counter keeps goes out of scope, it resets back to 0.
+ *
+ * @param data: buffer to write the data to
+ * @param len: maximum size of data to write to buffer in bytes
+ */
+int32_t get_sound_wrapper(uint8_t* data, int32_t len) {
+	static size_t counter = 0;
+	static bool counter_changed = true;
+	static File target = {0};
+
+	if (counter_changed) {
+		if (target)
+			target.close();
+		target = sd.open(targets[counter]);
+		if (!target)
+			return 0;
+	}
+
+	// If the counter has changed from the previous run, that means we're now about to start
+	// reading from a new target file; hence get_sound should seek.
+	int32_t ret = get_sound(target, counter_changed, data, len);
+
+	// If the file contained less data than requested, it means we've reached EOF
+	if (ret < len) {
+		counter++;
+		counter %= target_row_count;
+		counter_changed = true;
+	} else {
+		counter_changed = false;
+	}
+
+	return ret;
 }

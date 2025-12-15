@@ -1,8 +1,11 @@
 #ifndef ESP32BTAUDIO_SD
 #define ESP32BTAUDIO_SD
 
-#include <SPI.h>
-#include <SD.h>
+#include <SdFat.h>
+
+extern SdFat sd;
+extern char* targets;
+extern size_t targets_row_count, targets_row_sz;
 
 /*
  * Parses the .conf file at the root of the SD card's filesystem, every line of which contains
@@ -15,14 +18,27 @@
  * truncated, and only targets_row_sz-1 characters will be read.
  * Likewise, in the case that there are more lines than that which is allowed, only the first
  * targets_row_count lines will be read.
- *
- *
- * @param sd: reference to a previously setup SD object
- * @param 
- * @param targets_row_count: number of rows in the 2D array
- * @param targets_row_sz: size of each row of the 2D array
- * @return int: -1 on failure, number of rows written on success.
  */
-int parseConfig(SD& sd, char* targets, size_t targets_row_count, size_t targets_row_sz);
+int parse_config();
+
+/*
+ * Reads at most len bytes of PCM data from file to data.
+ *
+ * @param file: reference to File object to read data from
+ * @param data: buffer to write the data to
+ * @param len: maximum size of data to write to buffer in bytes
+ */
+int32_t get_sound(File& file, uint8_t* data, int32_t len);
+
+/*
+ * Wrapper function for get_sound to be used for A2DP's get_data_cb callback function.
+ * Internally keeps track of the file to play from the targets specificed in the config file.
+ * When the counter keeps goes out of scope, it resets back to 0.
+ *
+ * @param data: buffer to write the data to
+ * @param len: maximum size of data to write to buffer in bytes
+ */
+int32_t get_sound_wrapper(uint8_t* data, int32_t len);
+
 
 #endif
