@@ -4,8 +4,8 @@
 #include <SdFat.h>
 
 extern SdFat sd;
-extern char* targets;
-extern size_t targets_row_count, targets_row_sz;
+extern char targets[];
+extern const size_t targets_row_count, targets_row_sz;
 
 /*
  * Parses the .conf file at the root of the SD card's filesystem, every line of which contains

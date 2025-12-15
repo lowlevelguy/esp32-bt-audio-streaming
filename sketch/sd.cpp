@@ -1,6 +1,8 @@
 #include <stdlib.h>
+#include "sd.h"
 
 #define PCM_START 44
+
 
 /*
  * Parses the .conf file at the root of the SD card's filesystem, every line of which contains
@@ -22,9 +24,6 @@
  * @return int: -1 on failure, number of rows written on success.
  */
 int parse_config() {
-	if (!targets)
-		return -1;
-	
 	File conf_file = sd.open(".conf");
 	if (!conf_file)
 		return -1;
@@ -50,7 +49,7 @@ int parse_config() {
 			}
 
 			if (j < targets_row_sz-1) {
-				targets[i*targets_row_sz + j] = buf[k];
+				targets[i * targets_row_sz + j] = buf[k];
 				j++;
 			}
 			// Ignore characters further than the max allowed
@@ -92,12 +91,12 @@ int32_t get_sound(File& file, bool seek, uint8_t* data, int32_t len) {
 int32_t get_sound_wrapper(uint8_t* data, int32_t len) {
 	static size_t counter = 0;
 	static bool counter_changed = true;
-	static File target = {0};
+	static File target;
 
 	if (counter_changed) {
 		if (target)
 			target.close();
-		target = sd.open(targets[counter]);
+		target = sd.open(&targets[counter * targets_row_sz]);
 		if (!target)
 			return 0;
 	}
@@ -109,7 +108,7 @@ int32_t get_sound_wrapper(uint8_t* data, int32_t len) {
 	// If the file contained less data than requested, it means we've reached EOF
 	if (ret < len) {
 		counter++;
-		counter %= target_row_count;
+		counter %= targets_row_count;
 		counter_changed = true;
 	} else {
 		counter_changed = false;
