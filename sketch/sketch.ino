@@ -3,10 +3,17 @@
 #include "webserver.h"
 #include "sd.h"
 
+<<<<<<< HEAD
+extern BluetoothA2DPSource a2dp;
+extern std::vector<std::string> bt_devices;
+extern int current_device_id;
+extern bool streaming;
+=======
 
 const size_t targets_row_count = 16, targets_row_sz = 33;
 char targets[targets_row_count * targets_row_sz] = {0};
 SdFat sd;
+>>>>>>> refs/remotes/origin/master
 
 // Global variable to indicate the current state of the program
 enum {
@@ -16,19 +23,16 @@ enum {
 
 void setup() {
 	Serial.begin(9600);
+	bt_init();
+	bt_scan();
 
 	sd.begin(SS, SD_SCK_MHZ(4));
 }
 
 void loop() {
-	size_t len;
-	if ((len = parse_config()) > 0) {
-		Serial.println("Config:");
-		for (int i = 0; i < len; i++)
-			Serial.println(&targets[i*targets_row_sz]);
-	} else {
-		Serial.println("Failed to read config file");
+	Serial.println("Display Decteced devices");
+	for (auto e : bt_devices){
+			Serial.println(e);
 	}
-
 	delay(2000);
 }
