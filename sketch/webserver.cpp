@@ -1,51 +1,62 @@
 #include "webserver.h"
-#include "bluetooth.h"  // Assuming bluetooth functions exist
+#include "bluetooth.h"
 #include <WiFi.h>
 
-// Global reference to bluetooth devices (from bluetooth.cpp)
 extern String* btDevices;
 extern int btDeviceCount;
 
-void handleRootPage(AsyncWebServerRequest* request) {
+// Function prototypes from bluetooth module
+extern void scanBluetoothDevices();
+extern void connectToBluetoothDevice(int id);
+
+void handleRoot() {
     // Scan for devices
-    scanBluetoothDevices();  // From bluetooth.cpp
+    scanBluetoothDevices();
     
-    // Build HTML page with device list
-    String html = "<!DOCTYPE html><html><head>";
-    html += "<title>Select Bluetooth Speaker</title>";
-    html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
-    html += "<style>";
-    html += "body{font-family:Arial;padding:20px;text-align:center;}";
-    html += "a{display:block;padding:15px;margin:10px;background:#007bff;color:white;text-decoration:none;border-radius:5px;}";
-    html += "</style>";
-    html += "</head><body>";
-    html += "<h1>Select Bluetooth Speaker</h1>";
+    WebServer* server = (WebServer*)&server; // Access global server
+    
+    String html = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body { font-family: Arial; padding: 20px; }
+.device { padding: 15px; margin: 10px; background: #007bff; color: white; 
+          text-decoration: none; display: block; border-radius: 5px; }
+</style>
+</head>
+<body>
+<h1>Select Bluetooth Speaker</h1>
+)rawliteral";
+    
+    server->sendContent(html);
     
     if (btDeviceCount == 0) {
-        html += "<p>No devices found. Rescanning...</p>";
-        html += "<script>setTimeout(()=>location.reload(),2000)</script>";
+        server->sendContent("<p>Scanning... refresh in 3 seconds</p>");
+        server->sendContent("<script>setTimeout(()=>location.reload(),3000)</script>");
     } else {
         for (int i = 0; i < btDeviceCount; i++) {
-            html += "<a href='/connect?id=" + String(i) + "'>" + btDevices[i] + "</a>";
+            String link = "<a class='device' href='/connect?id=" + String(i) + "'>" + 
+                         btDevices[i] + "</a>";
+            server->sendContent(link);
         }
     }
     
-    html += "</body></html>";
-    
-    request->send(200, "text/html", html);
+    server->sendContent("</body></html>");
 }
 
-void handleConnectPage(AsyncWebServerRequest* request) {
-    String message;
+void handleConnect() {
+    WebServer* server = (WebServer*)&server;
     
-    if (request->hasParam("id")) {
-        int id = request->getParam("id")->value().toInt();
-        
+    String message;
+    if (server->hasArg("id")) {
+        int id = server->arg("id").toInt();
         if (id >= 0 && id < btDeviceCount) {
-            // Connect to device
-            connectToBluetoothDevice(id);  // From bluetooth.cpp
+            connectToBluetoothDevice(id);
             message = "<h1>Connected to " + btDevices[id] + "!</h1>";
-            message += "<p>System will reboot in streaming mode.</p>";
+            message += "<p>System will reboot in 5 seconds...</p>";
+            message += "<script>setTimeout(()=>{},5000)</script>";
         } else {
             message = "<h1>Invalid device ID</h1>";
         }
@@ -54,15 +65,13 @@ void handleConnectPage(AsyncWebServerRequest* request) {
     }
     
     message += "<p><a href='/'>Back</a></p>";
-    
-    request->send(200, "text/html", message);
+    server->send(200, "text/html", message);
 }
 
-void setupWebServer(AsyncWebServer* server) {
-    // Only two routes - NO LittleFS, NO CSS, NO JS
-    server->on("/", HTTP_GET, handleRootPage);
-    server->on("/connect", HTTP_GET, handleConnectPage);
+void setupWebServer(WebServer* server) {
+    server->on("/", handleRoot);
+    server->on("/connect", handleConnect);
     
     server->begin();
-    Serial.println("Web server started (minimal mode)");
+    Serial.println("Lightweight web server started");
 }
