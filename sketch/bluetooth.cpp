@@ -1,94 +1,135 @@
 #include "bluetooth.h"
 #include "BluetoothA2DPSource.h"
+#include "BluetoothSerial.h"
 
-/* ==============================
-   VARIABLES GLOBALES
-   ============================== */
+// Global instances
+static BluetoothA2DPSource a2dp_source;
+static BluetoothSerial bt_serial;
 
-BluetoothA2DPSource a2dp;
-std::vector<std::string> bt_devices;
-int current_device_id = -1;
-bool streaming = false;
+// Audio callback storage
+static int32_t (*audio_callback)(uint8_t*, int32_t) = nullptr;
 
-/* ==============================
-   PROTOTYPE CALLBACK AUDIO
-   ============================== */
-extern int32_t sd_read_audio(uint8_t *data, int32_t len);
+// Scan results storage
+static char scan_results[2048];
+static bool scan_complete = false;
 
-/* ==============================
-   CALLBACK SCAN BLUETOOTH
-   ============================== */
-void bt_scan_callback(const char *name, esp_bd_addr_t addr, int rssi) {
-    if (name != nullptr && strlen(name) > 0) {
-        bt_devices.push_back(std::string(name));
+// Scan callback
+static void bt_scan_callback(BTScanResults* results) {
+    scan_results[0] = '\0';
+    int offset = 0;
+    
+    for (int i = 0; i < results->getCount(); i++) {
+        BTAdvertisedDevice* device = results->getDevice(i);
+        if (device) {
+            const char* name = device->getName().c_str();
+            const char* addr = device->getAddress().toString().c_str();
+            
+            // Format: "Name|Address\n"
+            offset += snprintf(scan_results + offset, 
+                             sizeof(scan_results) - offset,
+                             "%s|%s\n", 
+                             name[0] ? name : "Unknown", 
+                             addr);
+            
+            if (offset >= sizeof(scan_results) - 100) break;
+        }
     }
+    scan_complete = true;
 }
 
-/* ==============================
-   INITIALISATION BLUETOOTH
-   ============================== */
+// A2DP audio data callback wrapper
+static int32_t a2dp_data_callback(uint8_t* data, int32_t len) {
+    if (audio_callback != nullptr) {
+        return audio_callback(data, len);
+    }
+    // Return silence if no callback
+    memset(data, 0, len);
+    return len;
+}
+
+// Initialize bluetooth module
 void bt_init() {
-    a2dp.set_scan_result_callback(bt_scan_callback);
+    scan_results[0] = '\0';
+    scan_complete = false;
 }
 
-/* ==============================
-   MODE SETUP
-   ============================== */
-
-/* Scan des appareils Bluetooth */
-void bt_scan() {
-    bt_devices.clear();
-    a2dp.scan();
+// Scan for bluetooth devices
+// Returns: pointer to scan results string (format: "Name|Address\n" per device)
+char* bt_scan() {
+    scan_results[0] = '\0';
+    scan_complete = false;
+    
+    if (!bt_serial.begin("ESP32_Scanner", true)) {
+        strcpy(scan_results, "ERROR: Failed to start Bluetooth\n");
+        return scan_results;
+    }
+    
+    // Discover devices (scan for 5 seconds)
+    BTScanResults* results = bt_serial.discover(5000);
+    
+    if (results) {
+        bt_scan_callback(results);
+    } else {
+        strcpy(scan_results, "ERROR: Scan failed\n");
+    }
+    
+    bt_serial.end();
+    return scan_results;
 }
 
-/* Retourne la liste des devices détectés */
-std::vector<std::string> bt_get_devices() {
-    return bt_devices;
+// Connect to a bluetooth device (does NOT start streaming)
+// Parameters:
+//   bt_dev: Bluetooth device address (e.g., "AA:BB:CC:DD:EE:FF") or name
+// Returns: 0 on success, -1 on failure
+int bt_connect(const char* bt_dev) {
+    if (bt_dev == nullptr || bt_dev[0] == '\0') {
+        return -1;
+    }
+    
+    // Start A2DP source but don't set up streaming yet
+    a2dp_source.start((char*)bt_dev);
+    
+    // Wait a bit for connection to establish
+    delay(1000);
+    
+    if (a2dp_source.is_connected()) {
+        return 0;
+    }
+    
+    return -1;
 }
 
-/* Connexion à un appareil Bluetooth */
-bool bt_connect(int id) {
-    if (id < 0 || id >= bt_devices.size())
-        return false;
-
-    current_device_id = id;
-    return a2dp.connect_to(bt_devices[id].c_str());
+// Set up audio streaming with a callback function
+// This is when streaming actually starts
+// Parameters:
+//   callback: Function that fills audio buffer
+//             Parameters: (uint8_t* data, int32_t len)
+//             Returns: number of bytes written
+void bt_stream(int32_t (*callback)(uint8_t*, int32_t)) {
+    if (callback == nullptr) {
+        return;
+    }
+    
+    audio_callback = callback;
+    // This call starts the actual audio streaming
+    a2dp_source.set_stream_reader(a2dp_data_callback, false);
 }
 
-/* ==============================
-   MODE STREAMING
-   ============================== */
-
-/* Callback audio A2DP */
-int32_t bt_audio_data_callback(uint8_t *data, int32_t len) {
-    return sd_read_audio(data, len);
-}
-
-/* Démarrer le streaming audio */
-bool bt_stream() {
-    if (current_device_id < 0)
-        return false;
-
-    a2dp.set_stream_reader(bt_audio_data_callback);
-    a2dp.start(bt_devices[current_device_id].c_str());
-    streaming = true;
-    return true;
-}
-
-/* Arrêter le streaming */
-void bt_stop_stream() {
-    a2dp.stop();
-    streaming = false;
-}
-
-/* ==============================
-   STATUS
-   ============================== */
-
+// Check if currently connected
 bool bt_is_connected() {
-    return a2dp.is_connected();
+    return a2dp_source.is_connected();
 }
 
-bool bt_is_streaming() {
-    return streaming;
+// Disconnect from current device
+void bt_disconnect() {
+    a2dp_source.disconnect();
+    audio_callback = nullptr;
+}
+
+// Get connection state
+const char* bt_get_state() {
+    if (a2dp_source.is_connected()) {
+        return "CONNECTED";
+    }
+    return "DISCONNECTED";
 }

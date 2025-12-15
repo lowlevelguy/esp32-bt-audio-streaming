@@ -12,7 +12,6 @@ const size_t targets_row_count = 16, targets_row_sz = 33;
 char targets[targets_row_count * targets_row_sz] = {0};
 SdFat sd;
 
-
 // Global variable to indicate the current state of the program
 enum {
 	SETUP_MODE,
