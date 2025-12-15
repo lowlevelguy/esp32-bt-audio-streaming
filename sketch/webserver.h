@@ -1,11 +1,10 @@
 #ifndef ESP32BTAUDIO_WEBSERVER
 #define ESP32BTAUDIO_WEBSERVER
 
-#include <ESPAsyncWebServer.h>
+#include <WebServer.h>
 
-// Only two functions needed
-void setupWebServer(AsyncWebServer* server);
-void handleRootPage(AsyncWebServerRequest* request);
-void handleConnectPage(AsyncWebServerRequest* request);
+void setupWebServer(WebServer* server);
+void handleRoot();
+void handleConnect();
 
 #endif
