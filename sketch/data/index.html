@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Audio Streamer</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-broadcast-tower"></i> ESP32 Audio Streamer</h1>
+            <p class="subtitle">Connect to your Bluetooth speaker</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="fas fa-bluetooth"></i> Available Speakers</h2>
+                <button class="btn btn-scan" onclick="scanDevices()">
+                    <i class="fas fa-search"></i> Scan
+                </button>
+            </div>
+            
+            <div id="loading" class="loading hidden">
+                <i class="fas fa-spinner fa-spin"></i> Scanning for devices...
+            </div>
+            
+            <div id="device-list" class="device-list">
+                <div class="empty-state">
+                    <i class="fas fa-speakers"></i>
+                    <p>Click "Scan" to find Bluetooth speakers</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="connection-status hidden" id="status">
+            <i class="fas fa-circle-notch fa-spin"></i>
+            <span id="status-text">Connecting...</span>
+        </div>
+        
+        <div class="footer">
+            <p>IP: <span id="ip-address">192.168.4.1</span></p>
+        </div>
+    </div>
+    
+    <script src="/script.js"></script>
+</body>
+</html>
