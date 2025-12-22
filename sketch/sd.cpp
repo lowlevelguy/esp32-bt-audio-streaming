@@ -67,9 +67,12 @@ int parse_config() {
  * Reads at most len bytes of PCM data from file to data.
  *
  * @param file: reference to FsFile object to read data from
- * @param seek: boolean to indicate whether we should seek to PCM_START
+ * @param seek: indicates whether the function should seek to
+ * 				the start of PCM data in file
  * @param data: buffer to write the data to
  * @param len: maximum size of data to write to buffer in bytes
+ *
+ * @return int: number of bytes written to data
  */
 int32_t get_sound(FsFile& file, bool seek, uint8_t* data, int32_t len) {
 	if (seek)
@@ -88,6 +91,8 @@ int32_t get_sound(FsFile& file, bool seek, uint8_t* data, int32_t len) {
  *
  * @param data: buffer to write the data to
  * @param len: maximum size of data to write to buffer in bytes
+ *
+ * @return int: number of bytes written to data
  */
 int32_t get_sound_wrapper(uint8_t* data, int32_t len) {
 	static size_t counter = 0;

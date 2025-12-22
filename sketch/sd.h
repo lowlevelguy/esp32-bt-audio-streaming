@@ -15,6 +15,8 @@
  * truncated, and only targets_row_sz-1 characters will be read.
  * Likewise, in the case that there are more lines than that which is allowed, only the first
  * targets_row_count lines will be read.
+ *
+ * @return int: -1 on failure, number of rows written on success.
  */
 int parse_config();
 
@@ -22,10 +24,14 @@ int parse_config();
  * Reads at most len bytes of PCM data from file to data.
  *
  * @param file: reference to File object to read data from
+ * @param seek: indicates whether the function should seek to
+ * 				the start of PCM data in file
  * @param data: buffer to write the data to
  * @param len: maximum size of data to write to buffer in bytes
+ *
+ * @return int: number of bytes written to data
  */
-int32_t get_sound(FsFile& file, uint8_t* data, int32_t len);
+int32_t get_sound(FsFile& file, bool seek, uint8_t* data, int32_t len);
 
 /*
  * Wrapper function for get_sound to be used for A2DP's get_data_cb callback function.
@@ -34,6 +40,8 @@ int32_t get_sound(FsFile& file, uint8_t* data, int32_t len);
  *
  * @param data: buffer to write the data to
  * @param len: maximum size of data to write to buffer in bytes
+ *
+ * @return int: number of bytes written to data
  */
 int32_t get_sound_wrapper(uint8_t* data, int32_t len);
 

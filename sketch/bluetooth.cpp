@@ -94,6 +94,11 @@ void gap_callback(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param) {
     }
 }
 
+/*
+ * Initializes A2DP, and sets up Bluetooth device discovery parameters (callback, scan mode).
+ *
+ * @param a2dp: reference to a BluetoothA2DPSource object
+ */
 void bt_init(BluetoothA2DPSource& a2dp) {
     a2dp.set_local_name("ESP32 Audio Source");
     a2dp.set_pin_code("9999", ESP_BT_PIN_TYPE_FIXED);
@@ -109,6 +114,11 @@ void bt_init(BluetoothA2DPSource& a2dp) {
     esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
 }
 
+/*
+ * Enables Bluetooth device discovery mode for duration many milliseconds.
+ *
+ * @param duration: device discovery duration in milliseconds.
+ */
 void bt_discover(uint8_t duration) {
     bt_devs.clear();
     discovery_done = false;
@@ -127,10 +137,22 @@ void bt_discover(uint8_t duration) {
     }
 }
 
+/*
+ * Sets the target sink for A2DP.
+ *
+ * @param a2dp: reference to a BluetoothA2DPSource object
+ * @param dev: sink device information
+ */
 void bt_connect(BluetoothA2DPSource& a2dp, dev_info_t dev) {
     a2dp.start(dev.dev_ssid);
 }
 
+/*
+ * Sets the A2DP data callback to be used for fetching audio data.
+ *
+ * @param a2dp: reference to a BluetoothA2DPSource object
+ * @param cb: function pointer to the target data callback
+ */
 void bt_stream(BluetoothA2DPSource& a2dp, int32_t (*cb)(uint8_t*,int32_t)) {
     a2dp.set_data_callback(cb);
 }
