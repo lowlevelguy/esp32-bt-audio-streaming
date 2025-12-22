@@ -1,41 +1,24 @@
 #ifndef ESP32BTAUDIO_BLUETOOTH
 #define ESP32BTAUDIO_BLUETOOTH
 
-
-#include <vector>
-#include <string>
 #include <stdint.h>
+#include <BluetoothA2DPSource.h>
+#include <esp_gap_bt_api.h>
+#include <esp_bt_main.h>
+#include <esp_bt.h>
 
-// Initialize bluetooth module
-void bt_init();
+#define MAX_DEV_NAME_LEN 32
 
-// Scan for bluetooth devices
-// Returns: pointer to scan results string (format: "Name|Address\n" per device)
-char* bt_scan();
+typedef struct {
+    char dev_ssid[MAX_DEV_NAME_LEN+1];
+    esp_bd_addr_t dev_addr;
+    int dev_rssi;
+    uint32_t dev_cod;
+} dev_info_t;
 
-// Connect to a bluetooth device (does NOT start streaming)
-// Parameters:
-//   bt_dev: Bluetooth device address (e.g., "AA:BB:CC:DD:EE:FF") or name
-// Returns: 0 on success, -1 on failure
-int bt_connect(const char* bt_dev);
-
-// Set up audio streaming with a callback function
-// This is when streaming actually starts
-// Parameters:
-//   callback: Function that fills audio buffer
-//             Parameters: (uint8_t* data, int32_t len)
-//             Returns: number of bytes written
-void bt_stream(int32_t (*callback)(uint8_t*, int32_t));
-
-// Check if currently connected
-bool bt_is_connected();
-
-// Disconnect from current device
-void bt_disconnect();
-
-// Get connection state
-const char* bt_get_state();
-
-
+void bt_init(BluetoothA2DPSource& a2dp);
+void bt_discover(uint8_t duration = 10);
+void bt_connect(BluetoothA2DPSource& a2dp, dev_info_t dev);
+void bt_stream(BluetoothA2DPSource& a2dp, int32_t (*cb)(uint8_t*,int32_t));
 
 #endif

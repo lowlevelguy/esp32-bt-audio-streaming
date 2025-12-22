@@ -3,33 +3,37 @@
 #include "webserver.h"
 #include "sd.h"
 
-extern BluetoothA2DPSource a2dp;
-extern std::vector<std::string> bt_devices;
-extern int current_device_id;
-extern bool streaming;
-
-const size_t targets_row_count = 16, targets_row_sz = 33;
+extern const size_t targets_row_count = 16, targets_row_sz = 33;
 char targets[targets_row_count * targets_row_sz] = {0};
 SdFat sd;
+BluetoothA2DPSource a2dp;
 
 // Global variable to indicate the current state of the program
-enum {
+typedef enum {
 	SETUP_MODE,
 	STREAMING_MODE
-} mode;
+} progmode_t;
+progmode_t mode = SETUP_MODE;
+
+WebServer ws(8080);
 
 void setup() {
 	Serial.begin(9600);
-	bt_init();
-	bt_scan();
-
 	sd.begin(SS, SD_SCK_MHZ(4));
+
+	// Begin in SETUP_MODE
+	mode = SETUP_MODE;
+
+	// Start AP and WebServer;
+	IPAddress ap_addr = wifi_init();
+	Serial.print("ESP32 working as WiFi access point... IP Address: ");
+	Serial.println(ap_addr);
+
+	bt_init(a2dp);
+	bt_stream(a2dp, get_sound_wrapper);
+	setupWebServer(&ws);
 }
 
 void loop() {
-	Serial.println("Display Decteced devices");
-	for (auto e : bt_devices){
-			Serial.println(e);
-	}
-	delay(2000);
+	ws.handleClient();
 }

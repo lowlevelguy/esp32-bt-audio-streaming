@@ -1,8 +1,10 @@
-#include <stdlib.h>
 #include "sd.h"
 
 #define PCM_START 44
 
+extern SdFat sd;
+extern char targets[];
+extern const size_t targets_row_count, targets_row_sz;
 
 /*
  * Parses the .conf file at the root of the SD card's filesystem, every line of which contains
@@ -16,15 +18,10 @@
  * Likewise, in the case that there are more lines than that which is allowed, only the first
  * targets_row_count lines will be read.
  *
- *
- * @param sd: reference to a previously setup SD object
- * @param targets: array of size targets_row_count*targets_row_sz in bytes
- * @param targets_row_count: number of rows in the 2D array
- * @param targets_row_sz: size of each row of the 2D array in bytes
  * @return int: -1 on failure, number of rows written on success.
  */
 int parse_config() {
-	File conf_file = sd.open(".conf");
+	FsFile conf_file = sd.open(".conf");
 	if (!conf_file)
 		return -1;
 
@@ -69,14 +66,18 @@ int parse_config() {
 /*
  * Reads at most len bytes of PCM data from file to data.
  *
- * @param file: reference to File object to read data from
+ * @param file: reference to FsFile object to read data from
  * @param seek: boolean to indicate whether we should seek to PCM_START
  * @param data: buffer to write the data to
  * @param len: maximum size of data to write to buffer in bytes
  */
-int32_t get_sound(File& file, bool seek, uint8_t* data, int32_t len) {
+int32_t get_sound(FsFile& file, bool seek, uint8_t* data, int32_t len) {
 	if (seek)
 		file.seekSet(PCM_START);
+
+	Serial.print("Streamed ");
+	Serial.print(len);
+	Serial.println(" many bytes");
 	return file.read(data, len);
 }
 
@@ -91,7 +92,7 @@ int32_t get_sound(File& file, bool seek, uint8_t* data, int32_t len) {
 int32_t get_sound_wrapper(uint8_t* data, int32_t len) {
 	static size_t counter = 0;
 	static bool counter_changed = true;
-	static File target;
+	static FsFile target;
 
 	if (counter_changed) {
 		if (target)

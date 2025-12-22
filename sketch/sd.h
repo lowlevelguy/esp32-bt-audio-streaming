@@ -1,11 +1,8 @@
 #ifndef ESP32BTAUDIO_SD
 #define ESP32BTAUDIO_SD
 
+#include <stdlib.h>
 #include <SdFat.h>
-
-extern SdFat sd;
-extern char targets[];
-extern const size_t targets_row_count, targets_row_sz;
 
 /*
  * Parses the .conf file at the root of the SD card's filesystem, every line of which contains
@@ -28,7 +25,7 @@ int parse_config();
  * @param data: buffer to write the data to
  * @param len: maximum size of data to write to buffer in bytes
  */
-int32_t get_sound(File& file, uint8_t* data, int32_t len);
+int32_t get_sound(FsFile& file, uint8_t* data, int32_t len);
 
 /*
  * Wrapper function for get_sound to be used for A2DP's get_data_cb callback function.

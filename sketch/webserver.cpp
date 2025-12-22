@@ -1,21 +1,23 @@
 #include "webserver.h"
 #include "bluetooth.h"
-#include <WiFi.h>
 
-extern String* btDevices;
-extern int btDeviceCount;
+#define MAX_BT_DEVS_COUNT 10
 
-// Function prototypes from bluetooth module
-extern void scanBluetoothDevices();
-extern void connectToBluetoothDevice(int id);
+typedef enum {
+	SETUP_MODE,
+	STREAMING_MODE
+} progmode_t;
+extern progmode_t mode;
+extern BluetoothA2DPSource a2dp;
+extern std::vector<dev_info_t> bt_devs;
+
+WebServer* server;
 
 void handleRoot() {
-    // Scan for devices
-    scanBluetoothDevices();
-    
-    WebServer* server = (WebServer*)&server; // Access global server
-    
-    String html = R"rawliteral(
+    String html;
+
+    if (mode == SETUP_MODE) {
+        html = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
@@ -27,48 +29,60 @@ body { font-family: Arial; padding: 20px; }
 </style>
 </head>
 <body>
-<h1>Select Bluetooth Speaker</h1>
+<h1>Select Bluetooth Device to Connect to</h1>
 )rawliteral";
     
-    server->sendContent(html);
-    
-    if (btDeviceCount == 0) {
-        server->sendContent("<p>Scanning... refresh in 3 seconds</p>");
-        server->sendContent("<script>setTimeout(()=>location.reload(),3000)</script>");
-    } else {
-        for (int i = 0; i < btDeviceCount; i++) {
-            String link = "<a class='device' href='/connect?id=" + String(i) + "'>" + 
-                         btDevices[i] + "</a>";
-            server->sendContent(link);
+        bt_discover(10);
+
+        if (bt_devs.size() == 0) {
+            html += "<p>No nearby Bluetooth device was detected. Please try again later</p>";
+        } else {
+            for (int i = 0; i < bt_devs.size(); i++) {
+                String link = "<a class='device' href='/connect?id=" + String(i) + "'>";
+                link.concat(bt_devs[i].dev_ssid);
+                link += "</a>";
+                html += link;
+            }
         }
+        html += "</body></html>";
+    } else {
+        html = "<h1>Already in streaming mode!</h1>";
     }
-    
-    server->sendContent("</body></html>");
+
+    server->send(200, "text/html", html);
 }
 
 void handleConnect() {
-    WebServer* server = (WebServer*)&server;
-    
     String message;
-    if (server->hasArg("id")) {
-        int id = server->arg("id").toInt();
-        if (id >= 0 && id < btDeviceCount) {
-            connectToBluetoothDevice(id);
-            message = "<h1>Connected to " + btDevices[id] + "!</h1>";
-            message += "<p>System will reboot in 5 seconds...</p>";
-            message += "<script>setTimeout(()=>{},5000)</script>";
+    if (mode == SETUP_MODE) {
+        if (server->hasArg("id")) {
+            int id = server->arg("id").toInt();
+            if (id >= 0 && id < bt_devs.size()) {
+                bt_connect(a2dp, bt_devs[id]);
+                delay(5000);
+                if (a2dp.is_connected()) {
+                    message = "<h1>Connected to ";
+                    message.concat(bt_devs[id].dev_ssid);
+                    message += "!</h1>";
+                    mode = STREAMING_MODE;
+                } else {
+                    message = "<h1>Failed to connect!</h1>";
+                }
+            } else {
+                message = "<h1>Invalid device ID</h1>";
+            }
         } else {
-            message = "<h1>Invalid device ID</h1>";
+            message = "<h1>Missing device ID</h1>";
         }
     } else {
-        message = "<h1>Missing device ID</h1>";
+        message = "<h1>Already in streaming mode!</h1>";
     }
     
-    message += "<p><a href='/'>Back</a></p>";
     server->send(200, "text/html", message);
 }
 
-void setupWebServer(WebServer* server) {
+void setupWebServer(WebServer* srv) {
+    server = srv;
     server->on("/", handleRoot);
     server->on("/connect", handleConnect);
     
